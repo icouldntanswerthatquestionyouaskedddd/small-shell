@@ -27,6 +27,8 @@ struct commandData
 */
 void parseCommandLine(char *commandLine, struct commandData *shellCommand)
 {
+    int argindex = 0; // For saving the index in the arguments array
+
     ssize_t len = 0;
     ssize_t nread;
     char *token;
@@ -60,6 +62,12 @@ void parseCommandLine(char *commandLine, struct commandData *shellCommand)
             token = strtok(commandLine, " \n");
             shellCommand->output_file = calloc(strlen(token) + 1, sizeof(char));
             strcpy(shellCommand->output_file, token);
+        }
+        else if (argindex < 512)
+        {
+            shellCommand->args[argindex] = calloc(strlen(token) + 1, sizeof(char));
+            strcpy(shellCommand->args[argindex], token);
+            argindex++;
         }
 
     }
