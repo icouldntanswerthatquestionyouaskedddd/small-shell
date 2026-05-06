@@ -36,13 +36,64 @@ void parseCommandLine(char *commandLine, struct commandData *shellCommand)
     if (!token)
     {
         shellCommand->command = NULL;
+        return;
     }
     else
     {
         shellCommand->command = calloc(strlen(token) + 1, sizeof(char));
         strcpy(shellCommand->command, token);
     }
+    while (token = strtok(NULL, " \n"))
+    {
+        if (strcmp(token, "&") == 0)
+        {
+            shellCommand->background = true;
+        }
+        else if (strcmp(token, "<") == 0)
+        {
+            token = strtok(commandLine, " \n");
+            shellCommand->input_file = calloc(strlen(token) + 1, sizeof(char));
+            strcpy(shellCommand->input_file, token);
+        }
+        else if (strcmp(token, ">") == 0)
+        {
+            token = strtok(commandLine, " \n");
+            shellCommand->output_file = calloc(strlen(token) + 1, sizeof(char));
+            strcpy(shellCommand->output_file, token);
+        }
+
+    }
     
+}
+
+/*
+* Free all memory used by a given commandData struct
+*/
+void freeCommand(struct commandData *shellCommand)
+{
+    if (shellCommand->command)
+    {
+        free(shellCommand->command);
+    }
+    shellCommand->command = NULL;
+    for (int i = 0; i < 512; i++)
+    {
+        if (shellCommand->args[i])
+        {
+            free(shellCommand->args[i]);
+        }
+        shellCommand->args[i] = NULL;
+    }
+    if (shellCommand->input_file)
+    {
+        free(shellCommand->input_file);
+    }
+    shellCommand->input_file = NULL;
+    if (shellCommand->output_file)
+    {
+        free(shellCommand->output_file);
+    }
+    shellCommand->output_file = NULL;
 }
 
 /*
@@ -77,6 +128,10 @@ int main()
         {
             continue;
         }
+        else if (shellCommand->command[0] == '#')
+        {
+            continue;
+        }
         else if (strcmp(shellCommand->command, "exit") == 0)
         {
             bool exit = true;
@@ -92,7 +147,11 @@ int main()
 
             continue;
         }
-        
+        else
+        {
+
+        }
+        freeCommand(shellCommand);
     }
     killAll();
     return EXIT_SUCCESS;
