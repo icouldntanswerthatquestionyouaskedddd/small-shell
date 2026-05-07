@@ -147,7 +147,24 @@ int main()
         }
         else if (strcmp(shellCommand->command, "cd") == 0)
         {
-
+            int changedir = -1;
+            if (!shellCommand->args[0])
+            {
+                changedir = chdir(getenv("HOME"));
+            }
+            else if (shellCommand->args[0])
+            {
+                char *path = shellCommand->args[0];
+                changedir = chdir(path);
+            }
+            if (changedir != 0)
+            {
+                printf("Incorrect syntax for cd.\n");
+                fflush(NULL);
+            }
+            size_t size = 100;
+            char *buf = malloc(size);
+            printf("%s\n", getcwd(buf, size));
             continue;
         }
         else if (strcmp(shellCommand->command, "status") == 0)
