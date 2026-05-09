@@ -39,6 +39,7 @@ void parseCommandLine(char *commandLine, struct commandData *shellCommand)
     if (!token)
     {
         shellCommand->command = NULL;
+        free(token);
         return;
     }
     else
@@ -66,7 +67,7 @@ void parseCommandLine(char *commandLine, struct commandData *shellCommand)
             shellCommand->output_file = calloc(strlen(token) + 1, sizeof(char));
             strcpy(shellCommand->output_file, token);
         }
-        else if (argindex < 512)
+        else if (argindex < 513)
         {
             shellCommand->args[argindex] = calloc(strlen(token) + 1, sizeof(char));
             strcpy(shellCommand->args[argindex], token);
@@ -75,7 +76,7 @@ void parseCommandLine(char *commandLine, struct commandData *shellCommand)
 
     }
     shellCommand->args[argindex] = NULL;
-    
+    free(token);
 }
 
 /*
@@ -83,28 +84,15 @@ void parseCommandLine(char *commandLine, struct commandData *shellCommand)
 */
 void freeCommand(struct commandData *shellCommand)
 {
-    if (shellCommand->command)
+    for (int i = 0; i < 514; i++)
     {
-        free(shellCommand->command);
-    }
-    shellCommand->command = NULL;
-    for (int i = 1; i < 512; i++)
-    {
-        if (shellCommand->args[i])
-        {
-            free(shellCommand->args[i]);
-        }
+        free(shellCommand->args[i]);
         shellCommand->args[i] = NULL;
     }
-    if (shellCommand->input_file)
-    {
-        free(shellCommand->input_file);
-    }
+    shellCommand->command = NULL;
+    free(shellCommand->input_file);
     shellCommand->input_file = NULL;
-    if (shellCommand->output_file)
-    {
-        free(shellCommand->output_file);
-    }
+    free(shellCommand->output_file);
     shellCommand->output_file = NULL;
 }
 
@@ -126,15 +114,24 @@ int main()
 {
     bool exitprogram = false;
 
+    char *commandLine = NULL;
+    ssize_t len = 0;
+
+    struct commandData *shellCommand = malloc(sizeof(struct commandData));
+    shellCommand->command = NULL;
+    for (int i = 0; i < 514; i++)
+    {
+        shellCommand->args[i] = NULL;
+    }
+    shellCommand->input_file = NULL;
+    shellCommand->output_file = NULL;
+
     // Check of the three built-in commands (exit, cd, and status) first.
     while (!exitprogram)
     {
         printf(": ");
         fflush(NULL);
-        char *commandLine = NULL;
-        ssize_t len = 0;
         ssize_t nread = getline(&commandLine, &len, stdin);
-        struct commandData *shellCommand = malloc(sizeof(struct commandData));
         parseCommandLine(commandLine, shellCommand);
         if (!shellCommand->command)
         {
@@ -196,9 +193,10 @@ int main()
                 pid_t wait = waitpid(child, &status, 0);
             }
         }
-        //freeCommand(shellCommand);
-        free(commandLine);
     }
+    freeCommand(shellCommand);
+    free(shellCommand);
+    free(commandLine);
     killAll();
     return EXIT_SUCCESS;
 }
