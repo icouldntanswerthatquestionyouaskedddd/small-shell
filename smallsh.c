@@ -14,7 +14,7 @@
 struct commandData
 {
     char *command;
-    char *args[512];
+    char *args[513]; // Make space for 512 arguments, plus on more space for a NULL value
     char *input_file;
     char *output_file;
     bool background;
@@ -71,6 +71,7 @@ void parseCommandLine(char *commandLine, struct commandData *shellCommand)
         }
 
     }
+    shellCommand->args[argindex + 1] = NULL;
     
 }
 
@@ -162,9 +163,6 @@ int main()
                 printf("Incorrect syntax for cd.\n");
                 fflush(NULL);
             }
-            size_t size = 100;
-            char *buf = malloc(size);
-            printf("%s\n", getcwd(buf, size));
             continue;
         }
         else if (strcmp(shellCommand->command, "status") == 0)
@@ -174,7 +172,17 @@ int main()
         }
         else
         {
+            // TODO: Output redirection
 
+            //pid_t process = fork();
+            //if (process = 0)
+            //{
+                if (!execvp(shellCommand->command, shellCommand->args))
+                {
+                    printf("Cannot find command '%s'.\n", shellCommand->command);
+                    //TODO: Set exit status
+                }
+            //}
         }
         freeCommand(shellCommand);
     }
