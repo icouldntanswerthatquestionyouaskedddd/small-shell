@@ -135,15 +135,18 @@ int main()
         parseCommandLine(commandLine, shellCommand);
         if (!shellCommand->command)
         {
+            freeCommand(shellCommand);
             continue;
         }
         else if (shellCommand->command[0] == '#')
         {
+            freeCommand(shellCommand);
             continue;
         }
         else if (strcmp(shellCommand->command, "exit") == 0)
         {
             exitprogram = true;
+            freeCommand(shellCommand);
             break;
         }
         else if (strcmp(shellCommand->command, "cd") == 0)
@@ -163,11 +166,14 @@ int main()
                 printf("Incorrect syntax for cd.\n");
                 fflush(NULL);
             }
+            freeCommand(shellCommand);
             continue;
         }
         else if (strcmp(shellCommand->command, "status") == 0)
         {
+            // TODO: STATUS
 
+            freeCommand(shellCommand);
             continue;
         }
         else
@@ -193,8 +199,8 @@ int main()
                 pid_t wait = waitpid(child, &status, 0);
             }
         }
+        freeCommand(shellCommand);
     }
-    freeCommand(shellCommand);
     free(shellCommand);
     free(commandLine);
     killAll();
