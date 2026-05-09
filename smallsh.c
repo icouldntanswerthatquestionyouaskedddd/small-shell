@@ -10,11 +10,12 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <sys/wait.h>
 
 struct commandData
 {
     char *command;
-    char *args[513]; // Make space for 512 arguments, plus on more space for a NULL value
+    char *args[514]; // Make space for the command, then 512 arguments, plus on more space for a NULL value
     char *input_file;
     char *output_file;
     bool background;
@@ -44,6 +45,8 @@ void parseCommandLine(char *commandLine, struct commandData *shellCommand)
     {
         shellCommand->command = calloc(strlen(token) + 1, sizeof(char));
         strcpy(shellCommand->command, token);
+        shellCommand->args[0] = shellCommand->command;
+        argindex++;
     }
     while (token = strtok(NULL, " \n"))
     {
@@ -71,7 +74,7 @@ void parseCommandLine(char *commandLine, struct commandData *shellCommand)
         }
 
     }
-    shellCommand->args[argindex + 1] = NULL;
+    shellCommand->args[argindex] = NULL;
     
 }
 
@@ -85,7 +88,7 @@ void freeCommand(struct commandData *shellCommand)
         free(shellCommand->command);
     }
     shellCommand->command = NULL;
-    for (int i = 0; i < 512; i++)
+    for (int i = 1; i < 512; i++)
     {
         if (shellCommand->args[i])
         {
@@ -121,10 +124,10 @@ void killAll()
 */
 int main()
 {
-    bool exit = false;
+    bool exitprogram = false;
 
     // Check of the three built-in commands (exit, cd, and status) first.
-    while (!exit)
+    while (!exitprogram)
     {
         printf(": ");
         fflush(NULL);
@@ -143,19 +146,19 @@ int main()
         }
         else if (strcmp(shellCommand->command, "exit") == 0)
         {
-            bool exit = true;
+            exitprogram = true;
             break;
         }
         else if (strcmp(shellCommand->command, "cd") == 0)
         {
             int changedir = -1;
-            if (!shellCommand->args[0])
+            if (!shellCommand->args[1])
             {
                 changedir = chdir(getenv("HOME"));
             }
-            else if (shellCommand->args[0])
+            else if (shellCommand->args[1])
             {
-                char *path = shellCommand->args[0];
+                char *path = shellCommand->args[1];
                 changedir = chdir(path);
             }
             if (changedir != 0)
@@ -174,17 +177,27 @@ int main()
         {
             // TODO: Output redirection
 
-            //pid_t process = fork();
-            //if (process = 0)
-            //{
-                if (!execvp(shellCommand->command, shellCommand->args))
+            int status = 0;
+
+            pid_t child = fork();
+
+            if (child == 0)
+            {
+                if (execvp(shellCommand->command, shellCommand->args))
                 {
                     printf("Cannot find command '%s'.\n", shellCommand->command);
-                    //TODO: Set exit status
+                    fflush(NULL);
+                    exit(1);
                 }
-            //}
+                exit(0);
+            }
+            else
+            {
+                pid_t wait = waitpid(child, &status, 0);
+            }
         }
-        freeCommand(shellCommand);
+        //freeCommand(shellCommand);
+        free(commandLine);
     }
     killAll();
     return EXIT_SUCCESS;
