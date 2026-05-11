@@ -125,6 +125,9 @@ int main()
     }
     shellCommand->input_file = NULL;
     shellCommand->output_file = NULL;
+    shellCommand->background = false;
+
+    int commandStatus = 0;
 
     // Check of the three built-in commands (exit, cd, and status) first.
     while (!exitprogram)
@@ -173,6 +176,8 @@ int main()
         {
             // TODO: STATUS
 
+            printf("exit value %d\n", commandStatus);
+
             freeCommand(shellCommand);
             continue;
         }
@@ -197,6 +202,7 @@ int main()
             else
             {
                 pid_t wait = waitpid(child, &status, 0);
+                commandStatus = WEXITSTATUS(status);
             }
         }
         freeCommand(shellCommand);
