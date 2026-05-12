@@ -108,6 +108,18 @@ void killAll()
 
 }
 
+void trackBackgroundProcess(pid_t backgroundProcess)
+{
+    bool alive = true;
+    int bkgdStatus = 0;
+    while(waitpid(backgroundProcess, &bkgdStatus, WNOHANG) == 0)
+    {
+    }
+    bkgdStatus = WEXITSTATUS(bkgdStatus);
+    printf("background pid %d is done: exit value %d\n", backgroundProcess, bkgdStatus);
+    fflush(NULL);
+}
+
 /*
 * Provides the colon : prompt prepetually until "exit" command is entered,
 * and checks for the three built-in commands before parsing the command line
@@ -136,110 +148,117 @@ int main()
     // Check of the three built-in commands (exit, cd, and status) first.
     while (!exitprogram)
     {
-        printf(": ");
-        fflush(NULL);
-        ssize_t nread = getline(&commandLine, &len, stdin);
-        parseCommandLine(commandLine, shellCommand);
-        if (!shellCommand->command)
+        int bkgdStatus = 0;
+        pid_t backgroundProcess = waitpid(-1, &bkgdStatus, WNOHANG);
+        if (backgroundProcess == -1 || backgroundProcess == 0)
         {
-            freeCommand(shellCommand);
-            continue;
-        }
-        else if (shellCommand->command[0] == '#')
-        {
-            freeCommand(shellCommand);
-            continue;
-        }
-        else if (strcmp(shellCommand->command, "exit") == 0)
-        {
-            exitprogram = true;
-            freeCommand(shellCommand);
-            break;
-        }
-        else if (strcmp(shellCommand->command, "cd") == 0)
-        {
-            int changedir = -1;
-            if (!shellCommand->args[1])
+            printf(": ");
+            fflush(NULL);
+            ssize_t nread = getline(&commandLine, &len, stdin);
+            parseCommandLine(commandLine, shellCommand);
+            if (!shellCommand->command)
             {
-                changedir = chdir(getenv("HOME"));
+                freeCommand(shellCommand);
+                continue;
             }
-            else if (shellCommand->args[1])
+            else if (shellCommand->command[0] == '#')
             {
-                char *path = shellCommand->args[1];
-                changedir = chdir(path);
+                freeCommand(shellCommand);
+                continue;
             }
-            if (changedir != 0)
+            else if (strcmp(shellCommand->command, "exit") == 0)
             {
-                printf("Incorrect syntax for cd.\n");
-                fflush(NULL);
+                exitprogram = true;
+                freeCommand(shellCommand);
+                break;
             }
-            freeCommand(shellCommand);
-            continue;
-        }
-        else if (strcmp(shellCommand->command, "status") == 0)
-        {
-            printf("exit value %d\n", commandStatus);
-
-            freeCommand(shellCommand);
-            continue;
-        }
-        else
-        {
-            bool inBackground = shellCommand->background;
-
-            int status = 0;
-
-            pid_t child = fork();
-
-            if (child == 0)
+            else if (strcmp(shellCommand->command, "cd") == 0)
             {
-
-                if (inBackground)
+                int changedir = -1;
+                if (!shellCommand->args[1])
                 {
-                    int devNull = open("/dev/null", O_RDWR);
-                    int inputDirection = dup2(devNull, 0);
-                    int OutputDirection = dup2(devNull, 1);
-                    close(devNull);
+                    changedir = chdir(getenv("HOME"));
                 }
-
-                // TODO: Input/output redirection
-
-                if (execvp(shellCommand->command, shellCommand->args))
+                else if (shellCommand->args[1])
                 {
-                    int restoreInput = dup2(dup(0), 0);
-                    int restoreOutput = dup2(dup(1), 1);
-                    printf("Cannot find command '%s'.\n", shellCommand->command);
+                    char *path = shellCommand->args[1];
+                    changedir = chdir(path);
+                }
+                if (changedir != 0)
+                {
+                    printf("Incorrect syntax for cd.\n");
                     fflush(NULL);
-                    exit(1);
                 }
-                    int restoreInput = dup2(dup(0), 0);
-                    int restoreOutput = dup2(dup(1), 1);
-                exit(0);
+                freeCommand(shellCommand);
+                continue;
+            }
+            else if (strcmp(shellCommand->command, "status") == 0)
+            {
+                printf("exit value %d\n", commandStatus);
+
+                freeCommand(shellCommand);
+                continue;
             }
             else
             {
-                if (inBackground)
+                bool inBackground = shellCommand->background;
+
+                int status = 0;
+
+                pid_t child = fork();
+
+                if (child == 0)
                 {
-                    printf("background pid is %d\n", child);
-                    fflush(NULL);
+
+                    if (inBackground)
+                    {
+                        // Redirect input and output to /dev/null by default
+                        int devNull = open("/dev/null", O_RDWR);
+                        int inputDirection = dup2(devNull, 0);
+                        int OutputDirection = dup2(devNull, 1);
+                        close(devNull);
+                    }
+
+                    // TODO: Input/output redirection
+
+                    if (execvp(shellCommand->command, shellCommand->args))
+                    {
+                        int restoreInput = dup2(dup(0), 0);
+                        int restoreOutput = dup2(dup(1), 1);
+                        printf("Cannot find command '%s'.\n", shellCommand->command);
+                        fflush(NULL);
+                        exit(1);
+                    }
+                    
+                    // Restore stdin and stdout
+                    int restoreInput = dup2(dup(0), 0);
+                    int restoreOutput = dup2(dup(1), 1);
+                    
+                    exit(0);
                 }
                 else
                 {
-                    pid_t wait = waitpid(child, &status, 0);
+                    if (inBackground)
+                    {
+                        printf("background pid is %d\n", child);
+                        fflush(NULL);
+                        // Start checking for termination for this particular child process
+                        //BackgroundProcess(chtrackild);
+                    }
+                    else
+                    {
+                        pid_t wait = waitpid(child, &status, 0);
+                    }
+                    commandStatus = WEXITSTATUS(status);
                 }
-                commandStatus = WEXITSTATUS(status);
             }
+            freeCommand(shellCommand);
         }
-        freeCommand(shellCommand);
-
-
-        int bkgdStatus = 0;
-        pid_t zombie = waitpid(-1, &bkgdStatus, WNOHANG);
-        if (errno != ECHILD && zombie != 0) // If waitpid did not find no background processes and returned a nonzero value indicating a background process terminated
+        else
         {
-            bkgdStatus = WEXITSTATUS(bkgdStatus);
-            printf("background pid %d is done: exit value %d\n", zombie, bkgdStatus);
-            fflush(NULL);
+        bkgdStatus = WEXITSTATUS(bkgdStatus);
+        printf("background pid %d is done: exit value %d\n", backgroundProcess, bkgdStatus);
+        fflush(NULL);
         }
     }
     free(shellCommand);
