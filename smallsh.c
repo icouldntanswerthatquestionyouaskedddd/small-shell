@@ -60,13 +60,13 @@ void parseCommandLine(char *commandLine, struct commandData *shellCommand)
         }
         else if (strcmp(token, "<") == 0)
         {
-            token = strtok(commandLine, " \n");
+            token = strtok(NULL, " \n");
             shellCommand->input_file = calloc(strlen(token) + 1, sizeof(char));
             strcpy(shellCommand->input_file, token);
         }
         else if (strcmp(token, ">") == 0)
         {
-            token = strtok(commandLine, " \n");
+            token = strtok(NULL, " \n");
             shellCommand->output_file = calloc(strlen(token) + 1, sizeof(char));
             strcpy(shellCommand->output_file, token);
         }
@@ -208,13 +208,34 @@ int main()
                     }
 
                     // Redirect input and output to any user-specified files
-
+                    if (shellCommand->input_file)
+                    {
+                        int input = open(shellCommand->input_file, O_RDONLY);
+                        if (input == -1)
+                        {
+                            printf("cannot open %s for input\n", shellCommand->input_file);
+                            fflush(NULL);
+                            exit(1);
+                        }
+                        int inputDirection = dup2(input, 0);
+                    }
+                    if (shellCommand->output_file)
+                    {
+                        int output = open(shellCommand->output_file, O_RDWR | O_CREAT, O_TRUNC);
+                        if (output == -1)
+                        {
+                            printf("cannot open %s for output\n", shellCommand->output_file);
+                            fflush(NULL);
+                            exit(1);
+                        }
+                        int outputDirection = dup2(output, 1);
+                    }
 
                     if (execvp(shellCommand->command, shellCommand->args))
                     {
                         int restoreInput = dup2(dup(0), 0);
                         int restoreOutput = dup2(dup(1), 1);
-                        printf("Cannot find command '%s'.\n", shellCommand->command);
+                        printf("%s: no such file or directory\n", shellCommand->command);
                         fflush(NULL);
                         exit(1);
                     }
