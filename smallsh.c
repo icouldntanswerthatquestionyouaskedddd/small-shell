@@ -108,18 +108,6 @@ void killAll()
 
 }
 
-void trackBackgroundProcess(pid_t backgroundProcess)
-{
-    bool alive = true;
-    int bkgdStatus = 0;
-    while(waitpid(backgroundProcess, &bkgdStatus, WNOHANG) == 0)
-    {
-    }
-    bkgdStatus = WEXITSTATUS(bkgdStatus);
-    printf("background pid %d is done: exit value %d\n", backgroundProcess, bkgdStatus);
-    fflush(NULL);
-}
-
 /*
 * Provides the colon : prompt prepetually until "exit" command is entered,
 * and checks for the three built-in commands before parsing the command line
@@ -219,7 +207,8 @@ int main()
                         close(devNull);
                     }
 
-                    // TODO: Input/output redirection
+                    // Redirect input and output to any user-specified files
+
 
                     if (execvp(shellCommand->command, shellCommand->args))
                     {
@@ -242,8 +231,6 @@ int main()
                     {
                         printf("background pid is %d\n", child);
                         fflush(NULL);
-                        // Start checking for termination for this particular child process
-                        //BackgroundProcess(chtrackild);
                     }
                     else
                     {
