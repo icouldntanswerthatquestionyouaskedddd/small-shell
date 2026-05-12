@@ -11,11 +11,14 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <sys/wait.h>
+#include <signal.h>
+#include <errno.h>
+#include <fcntl.h>
 
 struct commandData
 {
     char *command;
-    char *args[514]; // Make space for the command, then 512 arguments, plus on more space for a NULL value
+    char *args[513]; // Make space for the command, then the other 511 arguments, plus on more space for a NULL value
     char *input_file;
     char *output_file;
     bool background;
@@ -67,7 +70,7 @@ void parseCommandLine(char *commandLine, struct commandData *shellCommand)
             shellCommand->output_file = calloc(strlen(token) + 1, sizeof(char));
             strcpy(shellCommand->output_file, token);
         }
-        else if (argindex < 513)
+        else if (argindex < 512)
         {
             shellCommand->args[argindex] = calloc(strlen(token) + 1, sizeof(char));
             strcpy(shellCommand->args[argindex], token);
@@ -84,7 +87,7 @@ void parseCommandLine(char *commandLine, struct commandData *shellCommand)
 */
 void freeCommand(struct commandData *shellCommand)
 {
-    for (int i = 0; i < 514; i++)
+    for (int i = 0; i < 513; i++)
     {
         free(shellCommand->args[i]);
         shellCommand->args[i] = NULL;
@@ -94,6 +97,7 @@ void freeCommand(struct commandData *shellCommand)
     shellCommand->input_file = NULL;
     free(shellCommand->output_file);
     shellCommand->output_file = NULL;
+    shellCommand->background = false;
 }
 
 /*
@@ -119,7 +123,7 @@ int main()
 
     struct commandData *shellCommand = malloc(sizeof(struct commandData));
     shellCommand->command = NULL;
-    for (int i = 0; i < 514; i++)
+    for (int i = 0; i < 513; i++)
     {
         shellCommand->args[i] = NULL;
     }
@@ -174,8 +178,6 @@ int main()
         }
         else if (strcmp(shellCommand->command, "status") == 0)
         {
-            // TODO: STATUS
-
             printf("exit value %d\n", commandStatus);
 
             freeCommand(shellCommand);
@@ -183,7 +185,7 @@ int main()
         }
         else
         {
-            // TODO: Output redirection
+            bool inBackground = shellCommand->background;
 
             int status = 0;
 
@@ -191,21 +193,54 @@ int main()
 
             if (child == 0)
             {
+
+                if (inBackground)
+                {
+                    int devNull = open("/dev/null", O_RDWR);
+                    int inputDirection = dup2(devNull, 0);
+                    int OutputDirection = dup2(devNull, 1);
+                    close(devNull);
+                }
+
+                // TODO: Input/output redirection
+
                 if (execvp(shellCommand->command, shellCommand->args))
                 {
+                    int restoreInput = dup2(dup(0), 0);
+                    int restoreOutput = dup2(dup(1), 1);
                     printf("Cannot find command '%s'.\n", shellCommand->command);
                     fflush(NULL);
                     exit(1);
                 }
+                    int restoreInput = dup2(dup(0), 0);
+                    int restoreOutput = dup2(dup(1), 1);
                 exit(0);
             }
             else
             {
-                pid_t wait = waitpid(child, &status, 0);
+                if (inBackground)
+                {
+                    printf("background pid is %d\n", child);
+                    fflush(NULL);
+                }
+                else
+                {
+                    pid_t wait = waitpid(child, &status, 0);
+                }
                 commandStatus = WEXITSTATUS(status);
             }
         }
         freeCommand(shellCommand);
+
+
+        int bkgdStatus = 0;
+        pid_t zombie = waitpid(-1, &bkgdStatus, WNOHANG);
+        if (errno != ECHILD && zombie != 0) // If waitpid did not find no background processes and returned a nonzero value indicating a background process terminated
+        {
+            bkgdStatus = WEXITSTATUS(bkgdStatus);
+            printf("background pid %d is done: exit value %d\n", zombie, bkgdStatus);
+            fflush(NULL);
+        }
     }
     free(shellCommand);
     free(commandLine);
