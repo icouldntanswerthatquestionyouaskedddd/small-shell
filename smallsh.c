@@ -115,13 +115,13 @@ void sigtstpHandler(int signal)
 {
     if (backgroundAllowed)
     {
-        printf("\nEntering foreground-only mode (& is now ignored)\n: ");
-        fflush(NULL);
+        char *message = "\nEntering foreground-only mode (& is now ignored)\n: ";
+        write(STDOUT_FILENO, message, 52);
     }
     if (!backgroundAllowed)
     {
-        printf("\nExiting foreground-only mode\n: ");
-        fflush(NULL);
+        char *message = "\nExiting foreground-only mode\n: ";
+        write(STDOUT_FILENO, message, 32);
     }
     backgroundAllowed = !backgroundAllowed;
 }
@@ -136,7 +136,7 @@ void sigintHandler(int signal)
         if (WIFSIGNALED(childStatus))
         {
             childStatus = WTERMSIG(childStatus);
-            printf("\nterminated by signal %d\n", childStatus);
+            printf("\nterminated by signal 2\n", childStatus);
             fflush(NULL);
         }
     }
@@ -314,6 +314,12 @@ int main()
             {
                 childStatus = WEXITSTATUS(childStatus);
                 printf("background pid %d is done: exit value %d\n", childProcess, childStatus);
+                fflush(NULL);
+            }
+            if (WIFSIGNALED(childStatus)) // If the terminated child terminated due to a signal
+            {
+                childStatus = WTERMSIG(childStatus);
+                printf("background pid %d is done: terminated by signal %d\n", childProcess, childStatus);
                 fflush(NULL);
             }
         }
