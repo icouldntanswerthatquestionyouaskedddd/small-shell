@@ -26,6 +26,8 @@ struct commandData
 };
 
 static bool backgroundAllowed = true;
+static pid_t lastForegroundChild = 0;
+
 
 /*
 * Parse a given command line string and fill the fields in a
@@ -41,25 +43,29 @@ void parseCommandLine(char *commandLine, struct commandData *shellCommand)
         strcpy(commandLineCopy, commandLine);
         char expandedCommandLine[20000];
         pid_t smallshPID = getpid();
-        ssize_t len = 0;
-        ssize_t nread;
-        char *substr;
-
-        substr = strtok(commandLineCopy, "$$");
-        sprintf(expandedCommandLine, "%s", substr);
-        while (substr = strtok(NULL, "$$"))
+        int length = strlen(commandLineCopy);
+        int totalExpansions = 0;
+        for (int i = 0; i < length; i++)
         {
-            printf("************************************%s\n", expandedCommandLine);
-            fflush(NULL);
-            sprintf(expandedCommandLine, "%s%d%s", expandedCommandLine, smallshPID, substr);
-            printf("****************************%s\n", expandedCommandLine);
-            fflush(NULL);
+            if (commandLineCopy[i] == '$' && (i + 1 < length))
+            {
+                if  (commandLineCopy[i + 1] == '$')
+                {
+                    totalExpansions++;
+                    commandLineCopy[i] = '%';
+                    commandLineCopy[i + 1] = 'd';
+                }
+            }
         }
+        if (totalExpansions > 0)
+        {
+            sprintf(expandedCommandLine, commandLineCopy, smallshPID);
 
-        free(substr);
-        free(commandLine);
-        commandLine = calloc(strlen(expandedCommandLine) + 1, sizeof(char));
-        strcpy(commandLine, expandedCommandLine);
+            free(commandLine);
+            commandLine = calloc(strlen(expandedCommandLine) + 1, sizeof(char));
+            strcpy(commandLine, expandedCommandLine);
+        }
+        free(commandLineCopy);
     }
 
     int argindex = 0; // For saving the index in the arguments array
@@ -134,9 +140,16 @@ void freeCommand(struct commandData *shellCommand)
 /*
 * Kill all other processes or jobs started by the shell
 */
-void killAll()
+void killAll(pid_t childProcesses[100], int childProcessIndex)
 {
-    
+    for (int i = 0; i < childProcessIndex; i++)
+    {
+        fflush(NULL);
+        if (childProcesses[i] != 0)
+        {
+            kill(childProcesses[i], SIGTERM);
+        }
+    }
 }
 
 void sigtstpHandler(int signal)
@@ -180,6 +193,13 @@ int main()
 {
     signal(SIGINT, sigintHandler);
     signal(SIGTSTP, sigtstpHandler);
+
+    pid_t childProcesses[100];
+    int childProcessIndex = 0;
+    for (int i = 0; i < 100; i++)
+    {
+        childProcesses[i] = 0;
+    }
 
     bool exitprogram = false;
 
@@ -284,6 +304,9 @@ int main()
                     {
                         // Use default SIGINT behavior (terminate)
                         signal(SIGINT, SIG_DFL);
+
+                        // Record this as last foreground child
+                        lastForegroundChild = getpid();
                     }
 
                     // Redirect input and output to any user-specified files
@@ -297,6 +320,7 @@ int main()
                             exit(1);
                         }
                         int inputDirection = dup2(input, 0);
+                        close(input);
                     }
                     if (shellCommand->output_file)
                     {
@@ -308,6 +332,7 @@ int main()
                             exit(1);
                         }
                         int outputDirection = dup2(output, 1);
+                        close(output);
                     }
 
                     if (execvp(shellCommand->command, shellCommand->args))
@@ -322,11 +347,15 @@ int main()
                     // Restore stdin and stdout
                     int restoreInput = dup2(dup(0), 0);
                     int restoreOutput = dup2(dup(1), 1);
-                    
+
                     exit(0);
                 }
                 else
                 {
+                    int thisChildIndex = childProcessIndex;
+                    childProcesses[thisChildIndex] = child;
+                    childProcessIndex++;
+
                     if (inBackground)
                     {
                         printf("background pid is %d\n", child);
@@ -359,6 +388,6 @@ int main()
     }
     free(shellCommand);
     free(commandLine);
-    killAll();
+    killAll(childProcesses, childProcessIndex);
     return EXIT_SUCCESS;
 }
