@@ -14,6 +14,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 
 struct commandData
 {
@@ -23,6 +24,8 @@ struct commandData
     char *output_file;
     bool background;
 };
+
+static bool backgroundAllowed = true;
 
 /*
 * Parse a given command line string and fill the fields in a
@@ -105,7 +108,38 @@ void freeCommand(struct commandData *shellCommand)
 */
 void killAll()
 {
+    
+}
 
+void sigtstpHandler(int signal)
+{
+    if (backgroundAllowed)
+    {
+        printf("\nEntering foreground-only mode (& is now ignored)\n: ");
+        fflush(NULL);
+    }
+    if (!backgroundAllowed)
+    {
+        printf("\nExiting foreground-only mode\n: ");
+        fflush(NULL);
+    }
+    backgroundAllowed = !backgroundAllowed;
+}
+
+void sigintHandler(int signal)
+{
+    int childStatus = 0;
+    pid_t childProcess = 0;
+    while (childProcess == 0)
+    {
+        childProcess = waitpid(-1, &childStatus, WNOHANG);
+        if (WIFSIGNALED(childStatus))
+        {
+            childStatus = WTERMSIG(childStatus);
+            printf("\nterminated by signal %d\n", childStatus);
+            fflush(NULL);
+        }
+    }
 }
 
 /*
@@ -116,6 +150,9 @@ void killAll()
 */
 int main()
 {
+    signal(SIGINT, sigintHandler);
+    signal(SIGTSTP, sigtstpHandler);
+
     bool exitprogram = false;
 
     char *commandLine = NULL;
@@ -136,9 +173,9 @@ int main()
     // Check of the three built-in commands (exit, cd, and status) first.
     while (!exitprogram)
     {
-        int bkgdStatus = 0;
-        pid_t backgroundProcess = waitpid(-1, &bkgdStatus, WNOHANG);
-        if (backgroundProcess == -1 || backgroundProcess == 0)
+        int childStatus = 0;
+        pid_t childProcess = waitpid(-1, &childStatus, WNOHANG);
+        if (childProcess == -1 || childProcess == 0)
         {
             printf(": ");
             fflush(NULL);
@@ -197,6 +234,7 @@ int main()
 
                 if (child == 0)
                 {
+                    signal(SIGTSTP, SIG_IGN);
 
                     if (inBackground)
                     {
@@ -205,6 +243,14 @@ int main()
                         int inputDirection = dup2(devNull, 0);
                         int OutputDirection = dup2(devNull, 1);
                         close(devNull);
+
+                        // Ignore SIGINT
+                        signal(SIGINT, SIG_IGN);
+                    }
+                    else
+                    {
+                        // Use default SIGINT behavior (terminate)
+                        signal(SIGINT, SIG_DFL);
                     }
 
                     // Redirect input and output to any user-specified files
@@ -264,9 +310,12 @@ int main()
         }
         else
         {
-        bkgdStatus = WEXITSTATUS(bkgdStatus);
-        printf("background pid %d is done: exit value %d\n", backgroundProcess, bkgdStatus);
-        fflush(NULL);
+            if (WIFEXITED(childStatus)) // If the terminated child was a background process terminating normally
+            {
+                childStatus = WEXITSTATUS(childStatus);
+                printf("background pid %d is done: exit value %d\n", childProcess, childStatus);
+                fflush(NULL);
+            }
         }
     }
     free(shellCommand);
