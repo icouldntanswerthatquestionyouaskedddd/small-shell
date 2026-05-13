@@ -34,7 +34,7 @@ static bool backgroundAllowed = true;
 */
 void parseCommandLine(char *commandLine, struct commandData *shellCommand)
 {
-    /*// Perform $$ variable expansion
+    // Perform $$ variable expansion
     if (commandLine)
     {
         char *commandLineCopy = calloc(strlen(commandLine) + 1, sizeof(char));
@@ -46,11 +46,13 @@ void parseCommandLine(char *commandLine, struct commandData *shellCommand)
         char *substr;
 
         substr = strtok(commandLineCopy, "$$");
-        sprintf(expandedCommandLine, "%s\0", substr);
+        sprintf(expandedCommandLine, "%s", substr);
         while (substr = strtok(NULL, "$$"))
         {
-            sprintf(expandedCommandLine, "%s%d%s\0", expandedCommandLine, smallshPID, substr);
-            printf("%s\n", expandedCommandLine);
+            printf("************************************%s\n", expandedCommandLine);
+            fflush(NULL);
+            sprintf(expandedCommandLine, "%s%d%s", expandedCommandLine, smallshPID, substr);
+            printf("****************************%s\n", expandedCommandLine);
             fflush(NULL);
         }
 
@@ -58,7 +60,7 @@ void parseCommandLine(char *commandLine, struct commandData *shellCommand)
         free(commandLine);
         commandLine = calloc(strlen(expandedCommandLine) + 1, sizeof(char));
         strcpy(commandLine, expandedCommandLine);
-    }*/
+    }
 
     int argindex = 0; // For saving the index in the arguments array
 
