@@ -116,12 +116,12 @@ void sigtstpHandler(int signal)
     if (backgroundAllowed)
     {
         char *message = "\nEntering foreground-only mode (& is now ignored)\n: ";
-        write(STDOUT_FILENO, message, 52);
+        write(STDOUT_FILENO, message, 53);
     }
     if (!backgroundAllowed)
     {
         char *message = "\nExiting foreground-only mode\n: ";
-        write(STDOUT_FILENO, message, 32);
+        write(STDOUT_FILENO, message, 33);
     }
     backgroundAllowed = !backgroundAllowed;
 }
@@ -136,8 +136,8 @@ void sigintHandler(int signal)
         if (WIFSIGNALED(childStatus))
         {
             childStatus = WTERMSIG(childStatus);
-            printf("\nterminated by signal 2\n", childStatus);
-            fflush(NULL);
+            char *message = "\nterminated by signal 2\n";
+            write(STDOUT_FILENO, message, 24);
         }
     }
 }
