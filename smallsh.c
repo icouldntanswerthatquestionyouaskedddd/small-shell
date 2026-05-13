@@ -30,10 +30,36 @@ static bool backgroundAllowed = true;
 /*
 * Parse a given command line string and fill the fields in a
 * commandData struct with corresponding values from the command
-* line
+* line. Perform $$ variable expansion before beginning the parsing.
 */
 void parseCommandLine(char *commandLine, struct commandData *shellCommand)
 {
+    /*// Perform $$ variable expansion
+    if (commandLine)
+    {
+        char *commandLineCopy = calloc(strlen(commandLine) + 1, sizeof(char));
+        strcpy(commandLineCopy, commandLine);
+        char expandedCommandLine[20000];
+        pid_t smallshPID = getpid();
+        ssize_t len = 0;
+        ssize_t nread;
+        char *substr;
+
+        substr = strtok(commandLineCopy, "$$");
+        sprintf(expandedCommandLine, "%s\0", substr);
+        while (substr = strtok(NULL, "$$"))
+        {
+            sprintf(expandedCommandLine, "%s%d%s\0", expandedCommandLine, smallshPID, substr);
+            printf("%s\n", expandedCommandLine);
+            fflush(NULL);
+        }
+
+        free(substr);
+        free(commandLine);
+        commandLine = calloc(strlen(expandedCommandLine) + 1, sizeof(char));
+        strcpy(commandLine, expandedCommandLine);
+    }*/
+
     int argindex = 0; // For saving the index in the arguments array
 
     ssize_t len = 0;
@@ -226,7 +252,12 @@ int main()
             }
             else
             {
-                bool inBackground = shellCommand->background;
+                bool inBackground = false;
+                
+                if (backgroundAllowed)
+                {
+                    inBackground = shellCommand->background;
+                }
 
                 int status = 0;
 
@@ -267,7 +298,7 @@ int main()
                     }
                     if (shellCommand->output_file)
                     {
-                        int output = open(shellCommand->output_file, O_RDWR | O_CREAT, O_TRUNC);
+                        int output = open(shellCommand->output_file, O_RDWR | O_CREAT | O_TRUNC, 0660);
                         if (output == -1)
                         {
                             printf("cannot open %s for output\n", shellCommand->output_file);
