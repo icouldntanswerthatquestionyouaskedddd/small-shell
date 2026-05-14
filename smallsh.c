@@ -117,12 +117,9 @@ void parseCommandLine(char *commandLine, struct commandData *shellCommand)
         {
             shellCommand->background = true;
         }
-        else
-        {
-            argindex--;
-            free(shellCommand->args[argindex]);
-            shellCommand->args[argindex] = NULL;
-        }
+        argindex--;
+        free(shellCommand->args[argindex]);
+        shellCommand->args[argindex] = NULL;
     }
     free(token);
     free(expandedCommandLine);
@@ -164,7 +161,10 @@ void killAll(pid_t childProcesses[100], int childProcessIndex)
 void sigtstpHandler(int signal)
 {
     int statusForegroundChild = 0;
-    waitpid(lastForegroundChild, &statusForegroundChild, 0);
+    if (statusForegroundChild != 0)
+    {
+        waitpid(lastForegroundChild, &statusForegroundChild, 0);
+    }
     
     if (backgroundAllowed)
     {
