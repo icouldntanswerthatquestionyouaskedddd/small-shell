@@ -201,25 +201,6 @@ void sigtstpHandler(int signal)
 }
 
 /*
-* Handler for catching SGINT signals, used by main()
-*/
-void sigintHandler(int signal)
-{
-    int childStatus = 0;
-    pid_t childProcess = 0;
-    while (childProcess == 0) // Continuously check for when a foreground process is killed
-    {
-        childProcess = waitpid(-1, &childStatus, WNOHANG);
-        if (WIFSIGNALED(childStatus))
-        {
-            childStatus = WTERMSIG(childStatus);
-            char *message = "\nterminated by signal 2\n"; // Print out SIGINIT termination information
-            write(STDOUT_FILENO, message, 24);
-        }
-    }
-}
-
-/*
 * The main function of the program manages all prompting operations and does
 * the majority of the work for the shell. It calls the helper functions
 * defined above to simplify some operations.
@@ -233,7 +214,7 @@ void sigintHandler(int signal)
 int main()
 {
     // Link signal handlers defined above for main process
-    signal(SIGINT, sigintHandler);
+    signal(SIGINT, SIG_IGN);
     signal(SIGTSTP, sigtstpHandler);
 
     // Initialize array of child process pids
@@ -429,6 +410,8 @@ int main()
                         {
                             commandStatus = WTERMSIG(status); // Set the commandStatus to the terminating signal of the foreground process
                             lastForegroundTerminatedSig = true; // The process terminated from a signal
+                            char *message = "\nterminated by signal 2\n"; // Print out SIGINIT termination information
+                            write(STDOUT_FILENO, message, 24);
                         }
                     }
                 }
