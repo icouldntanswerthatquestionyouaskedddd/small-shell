@@ -89,11 +89,7 @@ void parseCommandLine(char *commandLine, struct commandData *shellCommand)
     }
     while (token = strtok(NULL, " \n"))
     {
-        if (strcmp(token, "&") == 0)
-        {
-            shellCommand->background = true;
-        }
-        else if (strcmp(token, "<") == 0)
+        if (strcmp(token, "<") == 0)
         {
             token = strtok(NULL, " \n");
             shellCommand->input_file = calloc(strlen(token) + 1, sizeof(char));
@@ -114,6 +110,10 @@ void parseCommandLine(char *commandLine, struct commandData *shellCommand)
 
     }
     shellCommand->args[argindex] = NULL;
+    if (strcmp(shellCommand->args[argindex - 1], "&") == 0) // If the last argument is &
+    {
+        shellCommand->background = true;
+    }
     free(token);
     free(expandedCommandLine);
 }
