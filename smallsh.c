@@ -59,6 +59,7 @@ void parseCommandLine(char *commandLine, struct commandData *shellCommand)
         }
         
         sprintf(tempCommandLine, expandedCommandLine, smallshPID);
+        fflush(NULL);
 
         free(expandedCommandLine);
         expandedCommandLine = calloc(strlen(tempCommandLine) + 1, sizeof(char));
@@ -279,6 +280,7 @@ int main()
             else if (strcmp(shellCommand->command, "status") == 0)
             {
                 printf("exit value %d\n", commandStatus);
+                fflush(NULL);
 
                 freeCommand(shellCommand);
                 continue;
