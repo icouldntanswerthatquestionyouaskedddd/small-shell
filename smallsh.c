@@ -35,7 +35,8 @@ struct commandData
 
 static bool backgroundAllowed = true; // Global variable for keeping track of background allowed or foreground-only mode
 static pid_t lastForegroundChild = 0; // Global variable that keeps track of the last foreground child process
-
+int commandStatus = 0; // Global variable that keeps track of the last foreground process's status or terminating signal
+bool lastForegroundTerminatedSig = false; // Global variable that keeps track of whether or not the last foreground child terminated from signal
 
 /*
 * Parse a given command line string and fill the fields in a given
@@ -259,12 +260,10 @@ int main()
     shellCommand->output_file = NULL;
     shellCommand->background = false;
 
-    int commandStatus = 0; // Keeps track of the last foreground process's status
-
     // Check for the three built-in commands (exit, cd, and status) first.
     while (!exitprogram) // Top-level while loop for program execution
     {
-        int childStatus = 0;
+        int childStatus = 0; // For saving background process status
         pid_t childProcess = waitpid(-1, &childStatus, WNOHANG); // For checking background process termination
         if (childProcess == -1 || childProcess == 0) // Before each prompt, check if a child process has terminated
         {
@@ -308,10 +307,18 @@ int main()
                 freeCommand(shellCommand);
                 continue;
             }
-            else if (strcmp(shellCommand->command, "status") == 0) // If the command was status, print the exit status of the last foreground command
+            else if (strcmp(shellCommand->command, "status") == 0) // If the command was status, print the exit status or termination signal of the last foreground command
             {
-                printf("exit value %d\n", commandStatus);
-                fflush(NULL);
+                if (!lastForegroundTerminatedSig)
+                {
+                    printf("exit status %d\n", commandStatus);
+                    fflush(NULL);
+                }
+                else if (lastForegroundTerminatedSig)
+                {
+                    printf("terminated by signal %d\n", commandStatus);
+                    fflush(NULL);
+                }
 
                 freeCommand(shellCommand);
                 continue;
@@ -329,7 +336,7 @@ int main()
 
                 pid_t child = fork(); // Fork off a child process
 
-                if (child == 0)
+                if (child == 0) // If inside of the child process
                 {
                     signal(SIGTSTP, SIG_IGN); // Make child processes ignore SIGTSTP
 
@@ -413,7 +420,16 @@ int main()
 
                         // Suspend user control until foreground process terminates
                         pid_t wait = waitpid(child, &status, 0);
-                        commandStatus = WEXITSTATUS(status); // Set the commandStatus to the exit status of the foreground process
+                        if (WIFEXITED(status))
+                        {
+                            commandStatus = WEXITSTATUS(status); // Set the commandStatus to the exit status of the foreground process
+                            lastForegroundTerminatedSig = false; // The process did not terminate from a signal
+                        }
+                        else if (WIFSIGNALED(status))
+                        {
+                            commandStatus = WTERMSIG(status); // Set the commandStatus to the terminating signal of the foreground process
+                            lastForegroundTerminatedSig = true; // The process terminated from a signal
+                        }
                     }
                 }
             }
@@ -428,7 +444,7 @@ int main()
                 printf("background pid %d is done: exit value %d\n", childProcess, childStatus);
                 fflush(NULL);
             }
-            if (WIFSIGNALED(childStatus)) // If the terminated child terminated due to a signal
+            else if (WIFSIGNALED(childStatus)) // If the terminated child terminated due to a signal
             {
                 // Print the signal termination status of the background process
                 childStatus = WTERMSIG(childStatus);
