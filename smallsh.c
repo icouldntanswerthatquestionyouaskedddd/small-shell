@@ -161,7 +161,7 @@ void killAll(pid_t childProcesses[100], int childProcessIndex)
 void sigtstpHandler(int signal)
 {
     int statusForegroundChild = 0;
-    if (statusForegroundChild != 0)
+    if (lastForegroundChild != 0)
     {
         waitpid(lastForegroundChild, &statusForegroundChild, 0);
     }
@@ -317,9 +317,6 @@ int main()
                     {
                         // Use default SIGINT behavior (terminate)
                         signal(SIGINT, SIG_DFL);
-
-                        // Record this as last foreground child
-                        lastForegroundChild = getpid();
                     }
 
                     // Redirect input and output to any user-specified files
@@ -376,6 +373,10 @@ int main()
                     }
                     else
                     {
+                        // Record the new child process as last foreground child
+                        lastForegroundChild = child;
+
+                        // Suspend user control until foreground process terminates
                         pid_t wait = waitpid(child, &status, 0);
                     }
                     commandStatus = WEXITSTATUS(status);
