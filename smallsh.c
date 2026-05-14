@@ -154,6 +154,9 @@ void killAll(pid_t childProcesses[100], int childProcessIndex)
 
 void sigtstpHandler(int signal)
 {
+    int statusForegroundChild = 0;
+    waitpid(lastForegroundChild, &statusForegroundChild, 0);
+    
     if (backgroundAllowed)
     {
         char *message = "\nEntering foreground-only mode (& is now ignored)\n: ";
