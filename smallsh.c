@@ -36,36 +36,33 @@ static pid_t lastForegroundChild = 0;
 */
 void parseCommandLine(char *commandLine, struct commandData *shellCommand)
 {
+    char *expandedCommandLine = calloc(strlen(commandLine) + 1, sizeof(char));
+    strcpy(expandedCommandLine, commandLine);
     // Perform $$ variable expansion
     if (commandLine)
     {
-        char *commandLineCopy = calloc(strlen(commandLine) + 1, sizeof(char));
-        strcpy(commandLineCopy, commandLine);
-        char expandedCommandLine[20000];
+        char tempCommandLine[20000];
         pid_t smallshPID = getpid();
-        int length = strlen(commandLineCopy);
+        int length = strlen(expandedCommandLine);
         int totalExpansions = 0;
         for (int i = 0; i < length; i++)
         {
-            if (commandLineCopy[i] == '$' && (i + 1 < length))
+            if (expandedCommandLine[i] == '$' && (i + 1 < length))
             {
-                if  (commandLineCopy[i + 1] == '$')
+                if  (expandedCommandLine[i + 1] == '$')
                 {
                     totalExpansions++;
-                    commandLineCopy[i] = '%';
-                    commandLineCopy[i + 1] = 'd';
+                    expandedCommandLine[i] = '%';
+                    expandedCommandLine[i + 1] = 'd';
                 }
             }
         }
-        if (totalExpansions > 0)
-        {
-            sprintf(expandedCommandLine, commandLineCopy, smallshPID);
+        
+        sprintf(tempCommandLine, expandedCommandLine, smallshPID);
 
-            free(commandLine);
-            commandLine = calloc(strlen(expandedCommandLine) + 1, sizeof(char));
-            strcpy(commandLine, expandedCommandLine);
-        }
-        free(commandLineCopy);
+        free(expandedCommandLine);
+        expandedCommandLine = calloc(strlen(tempCommandLine) + 1, sizeof(char));
+        strcpy(expandedCommandLine, tempCommandLine);
     }
 
     int argindex = 0; // For saving the index in the arguments array
@@ -75,11 +72,12 @@ void parseCommandLine(char *commandLine, struct commandData *shellCommand)
     char *token;
     
     // Parse the first token, the starting command
-    token = strtok(commandLine, " \n");
+    token = strtok(expandedCommandLine, " \n");
     if (!token)
     {
         shellCommand->command = NULL;
         free(token);
+        free(expandedCommandLine);
         return;
     }
     else
@@ -117,6 +115,7 @@ void parseCommandLine(char *commandLine, struct commandData *shellCommand)
     }
     shellCommand->args[argindex] = NULL;
     free(token);
+    free(expandedCommandLine);
 }
 
 /*
