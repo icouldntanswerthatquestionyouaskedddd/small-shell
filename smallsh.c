@@ -112,7 +112,16 @@ void parseCommandLine(char *commandLine, struct commandData *shellCommand)
     shellCommand->args[argindex] = NULL;
     if (strcmp(shellCommand->args[argindex - 1], "&") == 0) // If the last argument is &
     {
-        shellCommand->background = true;
+        if (backgroundAllowed)
+        {
+            shellCommand->background = true;
+        }
+        else
+        {
+            argindex--;
+            free(shellCommand->args[argindex]);
+            shellCommand->args[argindex] = NULL;
+        }
     }
     free(token);
     free(expandedCommandLine);
