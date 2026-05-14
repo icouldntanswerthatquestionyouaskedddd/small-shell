@@ -311,7 +311,7 @@ int main()
             {
                 if (!lastForegroundTerminatedSig)
                 {
-                    printf("exit status %d\n", commandStatus);
+                    printf("exit value %d\n", commandStatus);
                     fflush(NULL);
                 }
                 else if (lastForegroundTerminatedSig)
